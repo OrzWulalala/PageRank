@@ -1,0 +1,59 @@
+#include<stdlib.h>
+#include<stdio.h>
+#include<time.h>
+#include<cuda_runtime.h>
+#include<device_launch_parameters.h>
+#define DATA_SIZE 1048576
+#define THREAD_NUM 1024
+int data[DATA_SIZE];
+void GenerateNumbers(int *number, int size)
+{
+	for (int i = 0; i < size; i++) 
+		number[i] = rand() % 10;
+}
+__global__ static void sumOFSquares(int *num, int *result, clock_t *time)
+{
+	const int tid = threadIdx.x;
+	int sum = 0,i;
+	clock_t start;
+	if (tid == 0)start = clock();
+	for (i = tid; i < DATA_SIZE; i+=THREAD_NUM)
+	{
+		sum += num[i] * num[i] * num[i];
+	}
+	result[tid] = sum;
+	if (tid == 0)*time = clock() - start;
+}
+int main()
+{
+	GenerateNumbers(data, DATA_SIZE);
+	int *result, *gpudata;
+	clock_t *time;
+	cudaMalloc((void**)&result, sizeof(int)*THREAD_NUM);
+	cudaMalloc((void**)&gpudata, sizeof(int)*DATA_SIZE);
+	cudaMalloc((void**)&time, sizeof(clock_t));
+	cudaMemcpy(gpudata, data, sizeof(int)*DATA_SIZE, cudaMemcpyHostToDevice);
+	sumOFSquares << <1, THREAD_NUM, 0 >> > (gpudata, result, time);
+	int sum[THREAD_NUM];
+	clock_t *time_use;
+	cudaMemcpy(&sum, result, sizeof(int)*THREAD_NUM, cudaMemcpyDeviceToHost);
+	cudaMemcpy(&time_use, time, sizeof(clock_t), cudaMemcpyDeviceToHost);
+	cudaFree(gpudata);
+	cudaFree(result);
+	cudaFree(time);
+	int ans = 0;
+	for (int i = 0; i < THREAD_NUM; i++)
+	{
+		ans += sum[i];
+	}
+	printf("GPUsum=: %d GPUtime=: %d\n", ans, time_use);
+	ans = 0;
+	for (int i = 0; i < DATA_SIZE; i++)
+	{
+		ans += data[i] * data[i] * data[i];
+	}
+	printf("CPUsum=: %d\n", ans);
+	getchar();
+	getchar();
+	return 0;
+}
