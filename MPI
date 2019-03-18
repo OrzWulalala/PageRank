@@ -1,0 +1,99 @@
+#include"stdafx.h"
+#include<stdio.h>
+#include<mpi.h>
+#include<stdlib.h>
+#include<time.h>
+#define size 1000
+int main(int argc, char* argv[])
+{
+	double start, stop;
+	int i, j, k, l;
+	int *a, *b, *c, *buffer, *ans;
+	int rank, numprocs, line;
+	MPI_Init(NULL, NULL);
+	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+	MPI_Comm_size(MPI_COMM_WORLD, &numprocs);
+	line = size / numprocs;
+	a = (int*)malloc(sizeof(int)*size*size);
+	b = (int*)malloc(sizeof(int)*size*size);
+	c = (int*)malloc(sizeof(int)*size*size);
+	buffer = (int*)malloc(sizeof(int)*size*line);
+	ans = (int*)malloc(sizeof(int)*size*line);
+	if (rank == 0)
+	{
+		start = MPI_Wtime();
+		srand((unsigned)time(NULL));
+		for (i = 0; i < size; i++)
+			for (j = 0; j < size; j++)
+				a[i*size + j] = rand() % 30;
+		for (i = 0; i < size; i++)
+			for (j = 0; j < size; j++)
+				b[i*size + j] = rand() % 30;
+		for (i = 1; i < numprocs; i++)
+			MPI_Send(b, size*size, MPI_INT, i, 0, MPI_COMM_WORLD);
+		for (i = 1; i < numprocs; i++)
+			MPI_Send(a + (i - 1)*line*size, line*size, MPI_INT, i, 1, MPI_COMM_WORLD);
+		for (i = 1; i < numprocs; i++)
+		{
+			MPI_Recv(ans, line*size, MPI_INT, i, 3, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+			for (j = 0; j < line; j++)
+				for (k = 0; k < size; k++)
+					c[((i - 1)*line + j)*size + k] = ans[j*size + k];
+		}
+		for (i = (numprocs - 1)*line; i < size; i++)
+			for (j = 0; j < size; j++)
+			{
+				int temp = 0;
+				for (k = 0; k < size; k++)
+				{
+					temp += a[i*size + k] * b[k*size + j];
+					c[i*size + j] = temp;
+				}
+			}
+		stop = MPI_Wtime();
+		/*printf("Matrix A=:\n");
+		for (i = 0; i < size; i++)
+		{
+			for (j = 0; j < size; j++)
+				printf( "%3d ", a[i*size + j]);
+			printf("\n");
+		}
+		printf("Matrix B=:\n");
+		for (i = 0; i < size; i++)
+		{
+			for (j = 0; j < size; j++)
+				printf( "%3d ", b[i*size + j]);
+			printf("\n");
+		}
+		printf("Matrix C=A*B =:\n");
+		for (i = 0; i < size; i++)
+		{
+		    for (j = 0; j < size; j++)
+		        printf( "%6d ", c[i*size + j]);
+		    printf( "\n");
+		}*/
+
+		printf("rank:%d time:%lfs\n", rank, stop - start);
+		//free(a);
+		//free(b);
+		//free(c);
+		//free(buffer);
+		//free(ans);
+	}
+	else
+	{
+		MPI_Recv(b, size*size, MPI_INT, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+		MPI_Recv(buffer, size*line, MPI_INT, 0, 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+		for (i = 0; i < line; i++)
+			for (j = 0; j < size; j++)
+			{
+				int temp = 0;
+				for (k = 0; k < size; k++)
+					temp += buffer[i*size + k] * b[k*size + j];
+				ans[i*size + j] = temp;
+			}
+		MPI_Send(ans, line*size, MPI_INT, 0, 3, MPI_COMM_WORLD);
+	}
+	MPI_Finalize();
+	return 0;
+}
