@@ -1,0 +1,51 @@
+#include <stdio.h>
+#include <string.h>
+#include <cuda_runtime.h>
+#define N 3
+__global__ void Multi(int *a, int *b, int *c)
+{
+	int tid = threadIdx.x;
+	/*for (int i = 0; i < N; i++)
+	{
+	c[tid] += a[tid*N + i] * b[i];
+	}*/
+	c[tid] = a[tid] * b[tid%N];
+}
+__global__ void Add(int *c, int *d)
+{
+	int tid = threadIdx.x;
+	for (int i = tid*N + 1; i < tid*(N + 1); i++)
+		c[tid*N] += c[i];
+	for (int i = 0; i < N; i++)
+		d[i] = c[i*tid];
+}
+int main()
+{
+	int a[N][N], b[N], c[N], d[N*N], ans[N];
+	int *dev_a, *dev_b, *dev_c, *dev_d;
+	for (int i = 0; i < N; i++)
+		for (int j = 0; j < N; j++)
+			d[i*N + j] = a[i][j] = (i*N + j) % 13;
+	for (int i = 0; i < N; i++)
+		b[i] = i % 7;
+	cudaMalloc((void**)&dev_a, N*N * sizeof(int));
+	cudaMalloc((void**)&dev_b, N * sizeof(int));
+	cudaMalloc((void**)&dev_c, N*N * sizeof(int));
+	cudaMalloc((void**)&dev_d, N * sizeof(int));
+	cudaMemcpy(dev_a, d, N * N * sizeof(int), cudaMemcpyHostToDevice);
+	cudaMemcpy(dev_b, b, N * sizeof(int), cudaMemcpyHostToDevice);
+	Multi << <1, N*N >> >(dev_a, dev_b, dev_c);
+	Add << <1, N >> > (dev_c, dev_d);
+	cudaMemcpy(ans, dev_d, N * sizeof(int), cudaMemcpyDeviceToHost);
+	for (int i = 0; i < N*N; i++)
+		printf("%d ", d[i]);
+	printf("\n");
+	for (int i = 0; i < N; i++)
+		printf("%d\n", ans[i]);
+	cudaFree(dev_a);
+	cudaFree(dev_b);
+	cudaFree(dev_c);
+	cudaFree(dev_d);
+	getchar();
+	return 0;
+}
