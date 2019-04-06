@@ -1,0 +1,41 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
+double s[100010],sum;
+double max(double a,double b)
+{
+    if(a<b)return b;
+    return a;
+}
+int main()
+{
+	freopen("DataGenerator.in","r",stdin);
+	freopen("DataGenerator.out","w",stdout);
+    srand((unsigned)time(NULL));
+    int i,n,j;
+    scanf("%d",&n);
+    for(i=1;i<=n;i++)
+    {
+    	sum=0;
+    	for(j=1;j<=n;j++)
+    	{
+    		s[j]=rand()%100;
+    		if(s[j]>max(5,100.0/n))s[j]=0;
+    	}
+    	for(j=1;j<=n;j++)
+    		sum+=s[j];
+        if(sum==0)
+        for(j=1;j<=n;j++)
+            printf("%lf ",1.0/n);
+        else 
+    	for(j=1;j<=n;j++)
+    	{
+    		s[j]=s[j]/sum;
+    		printf("%lf ",s[j]);
+    	}
+    	printf("\n");
+    }
+    for(i=1;i<=n;i++)
+        printf("%lf ",1.0/n);
+    return 0;
+}
